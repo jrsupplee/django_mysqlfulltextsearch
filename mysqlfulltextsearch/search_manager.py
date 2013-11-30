@@ -53,14 +53,18 @@ class SearchQuerySet(models.query.QuerySet):
     """ A QuerySet with a new method, search, and wrappers around the
         most common operations performed on a query set."""
 
+    query_expansion = False
+
     def __init__(self, model = None, query = None, using = None,
-                 aggregate_field_name = 'relevance'):
+                 aggregate_field_name = 'relevance', query_expansion=False):
         
+        self.query_expansion = query_expansion
+
         super(SearchQuerySet, self).__init__(model, query, using)
         self._aggregate_field_name = aggregate_field_name
         
 
-    def search(self, query, fields):
+    def search(self, query, fields, query_expansion=False):
         meta = self.model._meta
 
         if not fields:
@@ -74,7 +78,7 @@ class SearchQuerySet(models.query.QuerySet):
         full_names = ["%s.%s" % (connection.ops.quote_name(meta.db_table),
                                  connection.ops.quote_name(column))
                       for column in columns]
-        match_expr = "MATCH(%s) AGAINST (%%s)" % (", ".join(full_names))
+        match_expr = "MATCH(%s) AGAINST (%%s %s)" % (", ".join(full_names), 'WITH QUERY EXPANSION' if query_expansion else '')
 
         return self.extra(select={self._aggregate_field_name: match_expr},
                           where=[match_expr],
@@ -129,5 +133,5 @@ class SearchManager(models.Manager):
         return SearchQuerySet(self.model)
 
 
-    def search(self, query, fields = []):
-        return self.get_query_set().search(query, fields)
+    def search(self, query, fields = [], query_expansion=False):
+        return self.get_query_set().search(query, fields, query_expansion=query_expansion)
