@@ -8,3 +8,5 @@
 *~
 *.xcf
 build/
+/dist/
+*.egg-info
